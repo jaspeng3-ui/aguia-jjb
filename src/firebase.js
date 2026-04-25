@@ -11,28 +11,39 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app);
-
+const db = getFirestore(app);
 const DOC_REF = doc(db, "site", "all");
 
 export async function loadAll() {
   try {
     const snap = await getDoc(DOC_REF);
     if (snap.exists()) {
-      console.log("Firebase: data loaded OK");
+      console.log("[Firebase] Loaded OK");
       return snap.data();
     }
-    console.log("Firebase: no data yet, using defaults");
+    console.log("[Firebase] No data yet");
     return null;
   } catch (e) {
-    console.error("Firebase LOAD error:", e);
+    console.error("[Firebase] Load error:", e.message);
     return null;
   }
 }
 
 export async function saveAll(data) {
-  console.log("Firebase: saving...");
-  await setDoc(DOC_REF, { ...data, updatedAt: new Date().toISOString() });
-  console.log("Firebase: saved OK");
-  return true;
+  try {
+    console.log("[Firebase] Saving...");
+    await setDoc(DOC_REF, {
+      texts: data.texts,
+      locations: data.locations,
+      blog: data.blog,
+      palmares: data.palmares,
+      config: data.config,
+      updatedAt: new Date().toISOString(),
+    });
+    console.log("[Firebase] Saved OK!");
+    return true;
+  } catch (e) {
+    console.error("[Firebase] Save FAILED:", e.message);
+    return false;
+  }
 }
