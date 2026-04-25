@@ -118,7 +118,7 @@ function LegalPage({texts:t,config:cfg,setPage:go}){return<div style={{minHeight
 // ═══════════════════════════════════════════════
 // ADMIN
 // ═══════════════════════════════════════════════
-function AdminPage({texts,setTexts,locations,setLocations,blog,setBlog,palmares,setPalmares,config,setConfig,saveAll,saving}){
+function AdminPage({texts,setTexts,locations,setLocations,blog,setBlog,palmares,setPalmares,config,setConfig,saveAll}){
   const[auth,setAuth]=useState(false);const[code,setCode]=useState("");const[err,setErr]=useState("");const[tab,setTab]=useState("texts");
   if(!auth)return<div style={{minHeight:"100vh",paddingTop:80}}><section style={{maxWidth:400,margin:"0 auto",padding:"80px 24px",textAlign:"center"}}><div className="an1" style={{...cd,padding:36}}><div style={{margin:"0 auto 18px",width:56,height:56,borderRadius:"50%",background:`${C.red}20`,display:"flex",alignItems:"center",justifyContent:"center",color:C.redLight}}>{Ic.lock()}</div><h2 style={{...hd,fontSize:28,letterSpacing:2,marginBottom:6}}>Panneau Admin</h2><p style={{color:C.textMuted,fontSize:13,marginBottom:22}}>Entrez le code administrateur.</p><input type="password" value={code} onChange={e=>setCode(e.target.value)} onKeyDown={e=>e.key==="Enter"&&(code===ADMIN_CODE?setAuth(true):setErr("Code incorrect"))} placeholder="Code admin" style={{...ip,textAlign:"center",marginBottom:14}}/>{err&&<p style={{color:C.redLight,fontSize:12,marginBottom:10}}>{err}</p>}<button onClick={()=>code===ADMIN_CODE?setAuth(true):setErr("Code incorrect")} style={{...bt(C.redLight,"#fff"),width:"100%",justifyContent:"center"}}>Connexion</button></div></section></div>;
 
@@ -128,7 +128,7 @@ function AdminPage({texts,setTexts,locations,setLocations,blog,setBlog,palmares,
   const socTypes=[{v:"facebook",l:"Facebook"},{v:"instagram",l:"Instagram"},{v:"youtube",l:"YouTube"},{v:"tiktok",l:"TikTok"},{v:"other",l:"Autre"}];
 
   return<div style={{minHeight:"100vh",paddingTop:80}}><section style={{maxWidth:1100,margin:"0 auto",padding:"40px 24px"}}>
-    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:14,marginBottom:28}}><div><h1 style={{...hd,fontSize:30,letterSpacing:2}}>Panneau Admin</h1><p style={{color:C.textMuted,fontSize:13}}>Sauvegardé dans Firebase</p></div><button onClick={saveAll} disabled={saving} style={{...bt(saving?C.border:C.redLight,"#fff"),opacity:saving?.7:1}}>{saving?Ic.spin():Ic.save()} {saving?"Sauvegarde...":"Sauvegarder"}</button></div>
+    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:14,marginBottom:28}}><div><h1 style={{...hd,fontSize:30,letterSpacing:2}}>Panneau Admin</h1><p style={{color:C.textMuted,fontSize:13}}>Sauvegardé dans Firebase</p></div><button onClick={saveAll} style={{...bt(C.redLight,"#fff")}}>{Ic.save()} Sauvegarder</button></div>
     <div style={{display:"flex",gap:4,marginBottom:28,overflowX:"auto",paddingBottom:4}}>{tabs.map(t=><button key={t.id} onClick={()=>setTab(t.id)} style={{...bt(tab===t.id?C.redLight:"transparent",tab===t.id?"#fff":C.textMuted,tab===t.id?"":"1px solid "+C.border),padding:"8px 18px",fontSize:13,whiteSpace:"nowrap"}}>{t.l}</button>)}</div>
 
     {tab==="texts"&&<div style={{display:"grid",gap:24}}>{tGrp.map(g=><div key={g.title} style={cd}><h3 style={{...hd,fontSize:20,color:C.gold,marginBottom:18,letterSpacing:1}}>{g.title}</h3><div style={{display:"grid",gap:14}}>{g.keys.map(k=><div key={k}><label style={lb}>{lMap[k]||k}</label>{(texts[k]||"").length>80?<textarea value={texts[k]} onChange={e=>setTexts(p=>({...p,[k]:e.target.value}))} style={{...ip,minHeight:100,resize:"vertical"}}/>:<input value={texts[k]} onChange={e=>setTexts(p=>({...p,[k]:e.target.value}))} style={ip}/>}</div>)}</div></div>)}</div>}
@@ -145,7 +145,7 @@ function AdminPage({texts,setTexts,locations,setLocations,blog,setBlog,palmares,
       <div style={cd}><h3 style={{...hd,fontSize:20,color:C.gold,marginBottom:18}}>Réseaux Sociaux</h3>{config.socials.map((soc,si)=><div key={soc.id} style={{display:"flex",gap:8,marginBottom:10,alignItems:"end",flexWrap:"wrap"}}><div style={{flex:"0 0 130px"}}><label style={lb}>Type</label><select value={soc.type} onChange={e=>{const ns=[...config.socials];ns[si]={...ns[si],type:e.target.value};setConfig(p=>({...p,socials:ns}))}} style={{...ip,cursor:"pointer"}}>{socTypes.map(st=><option key={st.v} value={st.v}>{st.l}</option>)}</select></div><div style={{flex:"1 1 120px"}}><label style={lb}>Nom</label><input value={soc.name} onChange={e=>{const ns=[...config.socials];ns[si]={...ns[si],name:e.target.value};setConfig(p=>({...p,socials:ns}))}} style={ip}/></div><div style={{flex:"2 1 200px"}}><label style={lb}>URL</label><input value={soc.url} onChange={e=>{const ns=[...config.socials];ns[si]={...ns[si],url:e.target.value};setConfig(p=>({...p,socials:ns}))}} style={ip}/></div><button onClick={()=>setConfig(p=>({...p,socials:p.socials.filter((_,i)=>i!==si)}))} style={{background:"none",border:"none",color:C.redLight,cursor:"pointer",padding:"8px 4px"}}>{Ic.trash()}</button></div>)}<button onClick={()=>setConfig(p=>({...p,socials:[...p.socials,{id:Date.now().toString(),name:"",url:"",type:"other"}]}))} style={{...bt("transparent",C.textMuted,`1px solid ${C.border}`),padding:"6px 14px",fontSize:12,marginTop:4}}>{Ic.plus()} Ajouter</button></div>
     </div>}
 
-    <div style={{marginTop:36,textAlign:"center"}}><button onClick={saveAll} disabled={saving} style={{...bt(saving?C.border:C.redLight,"#fff"),padding:"14px 54px",opacity:saving?.7:1}}>{saving?Ic.spin():Ic.save()} {saving?"Sauvegarde...":"Sauvegarder tout"}</button><p style={{color:C.textMuted,fontSize:11,marginTop:10}}>Visible par tous les visiteurs.</p></div>
+    <div style={{marginTop:36,textAlign:"center"}}><button onClick={saveAll} style={{...bt(C.redLight,"#fff"),padding:"14px 54px"}}>{Ic.save()} Sauvegarder tout</button><p style={{color:C.textMuted,fontSize:11,marginTop:10}}>Visible par tous les visiteurs.</p></div>
   </section></div>;
 }
 
@@ -154,7 +154,7 @@ function AdminPage({texts,setTexts,locations,setLocations,blog,setBlog,palmares,
 // ═══════════════════════════════════════════════
 export default function App(){
   const[page,setPage]=useState("accueil");
-  const[saving,setSaving]=useState(false);
+  
   const[texts,setTexts]=useState(DEFAULT_TEXTS);
   const[locations,setLocations]=useState(DEFAULT_LOCATIONS);
   const[blog,setBlog]=useState(DEFAULT_BLOG);
@@ -166,7 +166,7 @@ export default function App(){
 
   useEffect(()=>{(async()=>{try{const d=await fbLoad();if(d){d.texts&&setTexts(p=>({...p,...d.texts}));d.locations&&setLocations(d.locations);d.blog&&setBlog(d.blog);d.palmares&&setPalmares(d.palmares);d.config&&setConfig(p=>({...p,...d.config}))}}catch(e){console.error(e)}})()},[]);
 
-  const saveAll=useCallback(async()=>{setSaving(true);try{const ok=await fbSave({texts,locations,blog,palmares,config});setToast(ok?"ok":"err")}catch{setToast("err")}setSaving(false);setTimeout(()=>setToast(""),3000)},[texts,locations,blog,palmares,config]);
+  const saveAll=useCallback(()=>{setToast("ok");setTimeout(()=>setToast(""),2500);fbSave({texts,locations,blog,palmares,config}).catch(()=>{setToast("err");setTimeout(()=>setToast(""),3000)})},[texts,locations,blog,palmares,config]);
 
   return<div style={{minHeight:"100vh",background:C.bg}}>
     <style>{`@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
@@ -177,7 +177,7 @@ export default function App(){
     {page==="blog"&&<BlogPage texts={texts} blog={blog} config={config} setPage={setPage}/>}
     {page==="palmares"&&<PalmaresPage texts={texts} palmares={palmares} config={config} setPage={setPage}/>}
     {page==="legal"&&<LegalPage texts={texts} config={config} setPage={setPage}/>}
-    {page==="admin"&&<AdminPage texts={texts} setTexts={setTexts} locations={locations} setLocations={setLocations} blog={blog} setBlog={setBlog} palmares={palmares} setPalmares={setPalmares} config={config} setConfig={setConfig} saveAll={saveAll} saving={saving}/>}
+    {page==="admin"&&<AdminPage texts={texts} setTexts={setTexts} locations={locations} setLocations={setLocations} blog={blog} setBlog={setBlog} palmares={palmares} setPalmares={setPalmares} config={config} setConfig={setConfig} saveAll={saveAll}/>}
     <ScrollTop/>
     {toast==="ok"&&<div style={{position:"fixed",bottom:80,right:24,background:"#166534",color:"#fff",padding:"12px 24px",borderRadius:8,fontWeight:600,fontSize:13,animation:"fadeUp .3s ease",fontFamily:"'Barlow',sans-serif",zIndex:9999}}>✓ Sauvegardé !</div>}
     {toast==="err"&&<div style={{position:"fixed",bottom:80,right:24,background:C.redLight,color:"#fff",padding:"12px 24px",borderRadius:8,fontWeight:600,fontSize:13,animation:"fadeUp .3s ease",fontFamily:"'Barlow',sans-serif",zIndex:9999}}>✕ Erreur</div>}
