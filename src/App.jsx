@@ -153,7 +153,6 @@ function AdminPage({texts,setTexts,locations,setLocations,blog,setBlog,palmares,
 // ═══════════════════════════════════════════════
 export default function App(){
   const[page,setPage]=useState("accueil");
-  const[loading,setLoading]=useState(true);
   const[saving,setSaving]=useState(false);
   const[texts,setTexts]=useState(DEFAULT_TEXTS);
   const[locations,setLocations]=useState(DEFAULT_LOCATIONS);
@@ -164,11 +163,9 @@ export default function App(){
 
   useEffect(()=>{const h=()=>{if(window.location.hash==="#admin")setPage("admin")};h();window.addEventListener("hashchange",h);return()=>window.removeEventListener("hashchange",h)},[]);
 
-  useEffect(()=>{(async()=>{try{const[t,l,b,p,c]=await Promise.all([loadFromDB("texts",DEFAULT_TEXTS),loadFromDB("locations",DEFAULT_LOCATIONS),loadFromDB("blog",DEFAULT_BLOG),loadFromDB("palmares",DEFAULT_PALMARES),loadFromDB("config",DEFAULT_CONFIG)]);setTexts({...DEFAULT_TEXTS,...t});setLocations(l);setBlog(b);setPalmares(p);setConfig({...DEFAULT_CONFIG,...c})}catch(e){console.error(e)}setLoading(false)})()},[]);
+  useEffect(()=>{(async()=>{try{const[t,l,b,p,c]=await Promise.all([loadFromDB("texts",DEFAULT_TEXTS),loadFromDB("locations",DEFAULT_LOCATIONS),loadFromDB("blog",DEFAULT_BLOG),loadFromDB("palmares",DEFAULT_PALMARES),loadFromDB("config",DEFAULT_CONFIG)]);setTexts({...DEFAULT_TEXTS,...t});setLocations(l);setBlog(b);setPalmares(p);setConfig({...DEFAULT_CONFIG,...c})}catch(e){console.error(e)}})()},[]);
 
   const saveAll=useCallback(async()=>{setSaving(true);try{const r=await Promise.all([saveToDB("texts",texts),saveToDB("locations",locations),saveToDB("blog",blog),saveToDB("palmares",palmares),saveToDB("config",config)]);setToast(r.every(Boolean)?"ok":"err")}catch{setToast("err")}setSaving(false);setTimeout(()=>setToast(""),3000)},[texts,locations,blog,palmares,config]);
-
-  if(loading)return<div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:C.bg}}><div style={{textAlign:"center"}}><img src={LOGO_SRC} alt="" style={{width:70,height:70,borderRadius:"50%",animation:"pulse 1.5s infinite",marginBottom:16}}/><p style={{color:C.textMuted,fontFamily:"'Barlow',sans-serif",fontSize:14}}>Chargement...</p></div></div>;
 
   return<div style={{minHeight:"100vh",background:C.bg}}>
     <style>{`@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
