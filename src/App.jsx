@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { loadFromDB, saveToDB } from "./firebase.js";
+import { loadAll as fbLoad, saveAll as fbSave } from "./firebase.js";
 
 const LOGO_SRC = "/logo.png";
 const BANNER_SRC = "/banner.jpg";
@@ -163,9 +163,9 @@ export default function App(){
 
   useEffect(()=>{const h=()=>{if(window.location.hash==="#admin")setPage("admin")};h();window.addEventListener("hashchange",h);return()=>window.removeEventListener("hashchange",h)},[]);
 
-  useEffect(()=>{(async()=>{try{const[t,l,b,p,c]=await Promise.all([loadFromDB("texts",DEFAULT_TEXTS),loadFromDB("locations",DEFAULT_LOCATIONS),loadFromDB("blog",DEFAULT_BLOG),loadFromDB("palmares",DEFAULT_PALMARES),loadFromDB("config",DEFAULT_CONFIG)]);setTexts({...DEFAULT_TEXTS,...t});setLocations(l);setBlog(b);setPalmares(p);setConfig({...DEFAULT_CONFIG,...c})}catch(e){console.error(e)}})()},[]);
+  useEffect(()=>{(async()=>{try{const d=await fbLoad();if(d){d.texts&&setTexts(p=>({...p,...d.texts}));d.locations&&setLocations(d.locations);d.blog&&setBlog(d.blog);d.palmares&&setPalmares(d.palmares);d.config&&setConfig(p=>({...p,...d.config}))}}catch(e){console.error(e)}})()},[]);
 
-  const saveAll=useCallback(async()=>{setSaving(true);try{const r=await Promise.all([saveToDB("texts",texts),saveToDB("locations",locations),saveToDB("blog",blog),saveToDB("palmares",palmares),saveToDB("config",config)]);setToast(r.every(Boolean)?"ok":"err")}catch{setToast("err")}setSaving(false);setTimeout(()=>setToast(""),3000)},[texts,locations,blog,palmares,config]);
+  const saveAll=useCallback(async()=>{setSaving(true);try{const ok=await fbSave({texts,locations,blog,palmares,config});setToast(ok?"ok":"err")}catch{setToast("err")}setSaving(false);setTimeout(()=>setToast(""),3000)},[texts,locations,blog,palmares,config]);
 
   return<div style={{minHeight:"100vh",background:C.bg}}>
     <style>{`@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>

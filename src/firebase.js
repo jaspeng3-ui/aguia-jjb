@@ -13,22 +13,24 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
 
-export async function loadFromDB(key, defaultValue) {
+const DOC_REF = doc(db, "site", "all");
+
+export async function loadAll() {
   try {
-    const snap = await getDoc(doc(db, "site", key));
-    return snap.exists() ? snap.data().value : defaultValue;
+    const snap = await getDoc(DOC_REF);
+    return snap.exists() ? snap.data() : null;
   } catch (e) {
-    console.error(`Load ${key}:`, e);
-    return defaultValue;
+    console.error("Load error:", e);
+    return null;
   }
 }
 
-export async function saveToDB(key, data) {
+export async function saveAll(data) {
   try {
-    await setDoc(doc(db, "site", key), { value: data, updatedAt: new Date().toISOString() });
+    await setDoc(DOC_REF, { ...data, updatedAt: new Date().toISOString() });
     return true;
   } catch (e) {
-    console.error(`Save ${key}:`, e);
+    console.error("Save error:", e);
     return false;
   }
 }
