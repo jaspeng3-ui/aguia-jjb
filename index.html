@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/png" href="/logo.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Aguia JJB - Club de Jiu-Jitsu Brésilien à Toulon et La Moutonne. Cours pour tous les niveaux." />
+    <title>Aguia JJB — Jiu-Jitsu Brésilien Toulon</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Teko:wght@400;500;600;700&family=Barlow:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+    <style>
+      * { margin:0; padding:0; box-sizing:border-box; }
+      body { background:#080c14; color:#e8e6e1; font-family:'Barlow',sans-serif; overflow-x:hidden; }
+      ::-webkit-scrollbar { width:5px; }
+      ::-webkit-scrollbar-track { background:#080c14; }
+      ::-webkit-scrollbar-thumb { background:#9b1c1c; border-radius:3px; }
+      @keyframes fadeUp { from{opacity:0;transform:translateY(30px)} to{opacity:1;transform:translateY(0)} }
+      @keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.05)} }
+      .an1{animation:fadeUp .6s .05s ease both}
+      .an2{animation:fadeUp .6s .15s ease both}
+      .an3{animation:fadeUp .6s .25s ease both}
+      .an4{animation:fadeUp .6s .35s ease both}
+      a{color:inherit;text-decoration:none}
+      @media(max-width:768px){.hm{display:none!important}.sm{display:flex!important}}
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
