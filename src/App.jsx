@@ -166,7 +166,7 @@ export default function App(){
 
   useEffect(()=>{(async()=>{try{const d=await fbLoad();if(d){d.texts&&setTexts(p=>({...p,...d.texts}));d.locations&&setLocations(d.locations);d.blog&&setBlog(d.blog);d.palmares&&setPalmares(d.palmares);d.config&&setConfig(p=>({...p,...d.config}))}}catch(e){console.error(e)}})()},[]);
 
-  const saveAll=useCallback(()=>{setToast("ok");setTimeout(()=>setToast(""),2500);fbSave({texts,locations,blog,palmares,config}).catch(()=>{setToast("err");setTimeout(()=>setToast(""),3000)})},[texts,locations,blog,palmares,config]);
+  const saveAll=useCallback(async()=>{try{await fbSave({texts,locations,blog,palmares,config});setToast("ok");setTimeout(()=>setToast(""),2500)}catch(e){console.error("SAVE FAILED:",e);setToast("err");setTimeout(()=>setToast(""),5000)}},[texts,locations,blog,palmares,config]);
 
   return<div style={{minHeight:"100vh",background:C.bg}}>
     <style>{`@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
@@ -180,6 +180,6 @@ export default function App(){
     {page==="admin"&&<AdminPage texts={texts} setTexts={setTexts} locations={locations} setLocations={setLocations} blog={blog} setBlog={setBlog} palmares={palmares} setPalmares={setPalmares} config={config} setConfig={setConfig} saveAll={saveAll}/>}
     <ScrollTop/>
     {toast==="ok"&&<div style={{position:"fixed",bottom:80,right:24,background:"#166534",color:"#fff",padding:"12px 24px",borderRadius:8,fontWeight:600,fontSize:13,animation:"fadeUp .3s ease",fontFamily:"'Barlow',sans-serif",zIndex:9999}}>✓ Sauvegardé !</div>}
-    {toast==="err"&&<div style={{position:"fixed",bottom:80,right:24,background:C.redLight,color:"#fff",padding:"12px 24px",borderRadius:8,fontWeight:600,fontSize:13,animation:"fadeUp .3s ease",fontFamily:"'Barlow',sans-serif",zIndex:9999}}>✕ Erreur</div>}
+    {toast==="err"&&<div style={{position:"fixed",bottom:80,right:24,background:C.redLight,color:"#fff",padding:"12px 24px",borderRadius:8,fontWeight:600,fontSize:13,animation:"fadeUp .3s ease",fontFamily:"'Barlow',sans-serif",zIndex:9999,maxWidth:350}}>✕ Erreur de sauvegarde — vérifiez la console (F12)</div>}
   </div>;
 }

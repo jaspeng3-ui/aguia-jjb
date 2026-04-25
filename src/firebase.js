@@ -18,19 +18,21 @@ const DOC_REF = doc(db, "site", "all");
 export async function loadAll() {
   try {
     const snap = await getDoc(DOC_REF);
-    return snap.exists() ? snap.data() : null;
+    if (snap.exists()) {
+      console.log("Firebase: data loaded OK");
+      return snap.data();
+    }
+    console.log("Firebase: no data yet, using defaults");
+    return null;
   } catch (e) {
-    console.error("Load error:", e);
+    console.error("Firebase LOAD error:", e);
     return null;
   }
 }
 
 export async function saveAll(data) {
-  try {
-    await setDoc(DOC_REF, { ...data, updatedAt: new Date().toISOString() });
-    return true;
-  } catch (e) {
-    console.error("Save error:", e);
-    return false;
-  }
+  console.log("Firebase: saving...");
+  await setDoc(DOC_REF, { ...data, updatedAt: new Date().toISOString() });
+  console.log("Firebase: saved OK");
+  return true;
 }
