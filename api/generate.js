@@ -1,59 +1,58 @@
-// api/generate.js — Vercel Serverless Function
-// La clé API reste côté serveur, jamais exposée au frontend
-
 export default async function handler(req, res) {
-  // CORS
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
   if (req.method === "OPTIONS") return res.status(200).end();
   if (req.method !== "POST") return res.status(405).json({ error: "POST uniquement" });
 
-  const { prompt, context } = req.body || {};
+  let body = req.body;
+  if (typeof body === "string") {
+    try { body = JSON.parse(body); } catch { return res.status(400).json({ error: "JSON invalide" }); }
+  }
+
+  const prompt = body?.prompt;
+  const context = body?.context || "";
+
   if (!prompt || prompt.trim().length < 3) {
-    return res.status(400).json({ error: "Le prompt est trop court (min 3 caractères)" });
+    return res.status(400).json({ error: "Prompt trop court" });
   }
 
-  const apiKey = process.env.AI_SECRET_KEY;
+  const apiKey = process.env.OPENAI_KEY;
   if (!apiKey) {
-    return res.status(500).json({ error: "Clé API non configurée — ajoutez AI_SECRET_KEY dans les variables Vercel" });
+    return res.status(500).json({ error: "OPENAI_KEY non configuree dans Vercel > Settings > Environment Variables" });
   }
 
-  const systemPrompt = `Tu es un assistant de rédaction pour le club de Jiu-Jitsu Brésilien "Aguia JJB" basé à Toulon et La Moutonne, France.
-Tu rédiges des textes en français, professionnels mais chaleureux, adaptés au monde du sport et des arts martiaux.
-Tu peux rédiger : articles de blog, descriptions, annonces d'événements, résultats de compétitions, présentations d'athlètes, textes de bienvenue, etc.
-Garde un ton dynamique, motivant et communautaire. Sois concis et efficace.
-${context ? "Contexte supplémentaire : " + context : ""}`;
+  const systemMsg = "Tu es un assistant de redaction pour le club de Jiu-Jitsu Bresilien Aguia JJB base a Toulon et La Moutonne, France. Redige en francais avec un ton professionnel, chaleureux et dynamique, adapte au monde du sport et des arts martiaux. " + (context ? "Contexte supplementaire: " + context : "");
 
   try {
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
+        "Authorization": "Bearer " + apiKey,
       },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
+        model: "gpt-4o-mini",
         max_tokens: 1024,
-        system: systemPrompt,
-        messages: [{ role: "user", content: prompt }],
+        messages: [
+          { role: "system", content: systemMsg },
+          { role: "user", content: prompt },
+        ],
       }),
     });
 
+    const data = await response.json();
+
     if (!response.ok) {
-      const err = await response.text();
-      console.error("[AI] API error:", response.status, err);
-      if (response.status === 401) return res.status(401).json({ error: "Clé API invalide" });
-      if (response.status === 429) return res.status(429).json({ error: "Trop de requêtes — réessayez dans 1 minute" });
-      return res.status(500).json({ error: "Erreur API (" + response.status + ")" });
+      console.error("OpenAI error:", response.status, JSON.stringify(data));
+      const msg = data?.error?.message || "Erreur API " + response.status;
+      return res.status(response.status).json({ error: msg });
     }
 
-    const data = await response.json();
-    const text = data.content?.[0]?.text || "";
+    const text = data?.choices?.[0]?.message?.content || "";
     return res.status(200).json({ text });
   } catch (e) {
-    console.error("[AI] Fetch error:", e.message);
-    return res.status(500).json({ error: "Erreur réseau : " + e.message });
+    console.error("Fetch error:", e.message);
+    return res.status(500).json({ error: "Erreur reseau: " + e.message });
   }
 }
