@@ -83,18 +83,136 @@ function ScrollTop(){const[s,sS]=useState(false);useEffect(()=>{const h=()=>sS(w
 
 function MapEmbed({locations,height=350}){const lats=locations.map(l=>l.lat),lngs=locations.map(l=>l.lng);const cLat=(Math.min(...lats)+Math.max(...lats))/2,cLng=(Math.min(...lngs)+Math.max(...lngs))/2;const m=locations.map(l=>`L.marker([${l.lat},${l.lng}]).addTo(map).bindPopup('<b>${l.name.replace(/'/g,"\\'")}</b><br>${l.city.replace(/'/g,"\\'")}');`).join("");const html=`<!DOCTYPE html><html><head><meta charset="utf-8"/><link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/><script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"><\/script><style>*{margin:0}#map{width:100%;height:100vh}</style></head><body><div id="map"></div><script>var map=L.map('map',{scrollWheelZoom:false}).setView([${cLat},${cLng}],12);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OSM'}).addTo(map);${m}<\/script></body></html>`;return<div style={{borderRadius:12,overflow:"hidden",border:`1px solid ${C.border}`,width:"100%"}}><iframe title="Carte" width="100%" height={height} frameBorder="0" style={{border:0,display:"block"}} srcDoc={html} loading="lazy"/></div>;}
 
-function compressImg(file,maxW=800,quality=0.75){return new Promise(resolve=>{const img=new Image();img.onload=()=>{const c=document.createElement("canvas");let w=img.width,h=img.height;if(w>maxW){h=h*(maxW/w);w=maxW;}if(h>maxW){w=w*(maxW/h);h=maxW;}c.width=w;c.height=h;c.getContext("2d").drawImage(img,0,0,w,h);resolve(c.toDataURL("image/jpeg",quality));};img.src=URL.createObjectURL(file);});}
+// ─── IMAGE EDITOR ────
+function ImageEditor({src,onSave,onCancel,aspect}){
+  const canvasRef=useRef(null);
+  const[img,setImg]=useState(null);
+  const[zoom,setZoom]=useState(1);
+  const[pos,setPos]=useState({x:0,y:0});
+  const[dragging,setDragging]=useState(false);
+  const[dragStart,setDragStart]=useState({x:0,y:0});
+  const[brightness,setBrightness]=useState(100);
+  const OUTPUT_W=800,OUTPUT_H=aspect==="square"?800:aspect==="banner"?400:600;
+  const PREVIEW_W=360,PREVIEW_H=Math.round(PREVIEW_W*(OUTPUT_H/OUTPUT_W));
 
-function ImgUpload({value,onChange,label:labelText}){
-  const ref=useRef(null);const[upl,setUpl]=useState(false);
-  const handleFile=async e=>{const f=e.target.files?.[0];if(!f)return;setUpl(true);try{onChange(await compressImg(f));}catch(err){alert("Erreur: "+err.message);}setUpl(false);e.target.value="";};
-  return<div><label style={lbl}>{labelText}</label>
+  useEffect(()=>{const i=new Image();i.onload=()=>{setImg(i);setZoom(1);setPos({x:0,y:0})};i.src=src},[src]);
+
+  const draw=useCallback(()=>{
+    const cv=canvasRef.current;if(!cv||!img)return;
+    const ctx=cv.getContext("2d");
+    cv.width=PREVIEW_W;cv.height=PREVIEW_H;
+    ctx.fillStyle="#111";ctx.fillRect(0,0,PREVIEW_W,PREVIEW_H);
+    ctx.filter=`brightness(${brightness}%)`;
+    const scale=Math.max(PREVIEW_W/img.width,PREVIEW_H/img.height)*zoom;
+    const w=img.width*scale,h=img.height*scale;
+    const x=(PREVIEW_W-w)/2+pos.x,y=(PREVIEW_H-h)/2+pos.y;
+    ctx.drawImage(img,x,y,w,h);
+    ctx.filter="none";
+    // grid overlay
+    ctx.strokeStyle="rgba(255,255,255,0.15)";ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(PREVIEW_W/3,0);ctx.lineTo(PREVIEW_W/3,PREVIEW_H);ctx.moveTo(2*PREVIEW_W/3,0);ctx.lineTo(2*PREVIEW_W/3,PREVIEW_H);ctx.moveTo(0,PREVIEW_H/3);ctx.lineTo(PREVIEW_W,PREVIEW_H/3);ctx.moveTo(0,2*PREVIEW_H/3);ctx.lineTo(PREVIEW_W,2*PREVIEW_H/3);ctx.stroke();
+  },[img,zoom,pos,brightness,PREVIEW_W,PREVIEW_H]);
+
+  useEffect(()=>{draw()},[draw]);
+
+  const handleMouseDown=e=>{e.preventDefault();setDragging(true);const rect=canvasRef.current.getBoundingClientRect();const clientX=e.touches?e.touches[0].clientX:e.clientX;const clientY=e.touches?e.touches[0].clientY:e.clientY;setDragStart({x:clientX-pos.x,y:clientY-pos.y})};
+  const handleMouseMove=e=>{if(!dragging)return;e.preventDefault();const clientX=e.touches?e.touches[0].clientX:e.clientX;const clientY=e.touches?e.touches[0].clientY:e.clientY;setPos({x:clientX-dragStart.x,y:clientY-dragStart.y})};
+  const handleMouseUp=()=>setDragging(false);
+
+  const exportImg=()=>{
+    if(!img)return;
+    const cv=document.createElement("canvas");cv.width=OUTPUT_W;cv.height=OUTPUT_H;
+    const ctx=cv.getContext("2d");
+    ctx.fillStyle="#111";ctx.fillRect(0,0,OUTPUT_W,OUTPUT_H);
+    ctx.filter=`brightness(${brightness}%)`;
+    const scaleRatio=OUTPUT_W/PREVIEW_W;
+    const scale=Math.max(OUTPUT_W/img.width,OUTPUT_H/img.height)*zoom;
+    const w=img.width*scale,h=img.height*scale;
+    const x=(OUTPUT_W-w)/2+pos.x*scaleRatio,y=(OUTPUT_H-h)/2+pos.y*scaleRatio;
+    ctx.drawImage(img,x,y,w,h);
+    onSave(cv.toDataURL("image/jpeg",0.8));
+  };
+
+  const S={
+    overlay:{position:"fixed",inset:0,zIndex:2000,background:"rgba(0,0,0,0.85)",backdropFilter:"blur(8px)",display:"flex",alignItems:"center",justifyContent:"center",padding:20},
+    modal:{background:C.card,borderRadius:16,border:`1px solid ${C.border}`,padding:28,maxWidth:460,width:"100%",maxHeight:"90vh",overflowY:"auto"},
+    title:{...hd,fontSize:24,letterSpacing:1,marginBottom:4,color:C.text},
+    sub:{fontSize:12,color:C.textMuted,marginBottom:20},
+    canvasWrap:{borderRadius:10,overflow:"hidden",border:`2px solid ${C.border}`,marginBottom:16,cursor:dragging?"grabbing":"grab",touchAction:"none",lineHeight:0},
+    sliderRow:{display:"flex",alignItems:"center",gap:12,marginBottom:12},
+    sliderLabel:{fontSize:11,fontWeight:700,color:C.textMuted,textTransform:"uppercase",letterSpacing:1,minWidth:70},
+    slider:{flex:1,height:4,appearance:"none",WebkitAppearance:"none",background:C.border,borderRadius:2,outline:"none",cursor:"pointer"},
+    btnRow:{display:"flex",gap:10,marginTop:20},
+  };
+
+  return <div style={S.overlay} onClick={onCancel}>
+    <div style={S.modal} onClick={e=>e.stopPropagation()}>
+      <h3 style={S.title}>Éditeur d'image</h3>
+      <p style={S.sub}>Déplacez l'image pour recadrer, ajustez le zoom et la luminosité</p>
+      
+      <div style={S.canvasWrap} onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp} onTouchStart={handleMouseDown} onTouchMove={handleMouseMove} onTouchEnd={handleMouseUp}>
+        <canvas ref={canvasRef} style={{width:PREVIEW_W,height:PREVIEW_H,display:"block",maxWidth:"100%"}}/>
+      </div>
+
+      <div style={S.sliderRow}>
+        <span style={S.sliderLabel}>Zoom</span>
+        <input type="range" min="100" max="300" value={Math.round(zoom*100)} onChange={e=>setZoom(e.target.value/100)} style={S.slider}/>
+        <span style={{fontSize:12,color:C.textMuted,minWidth:36}}>{Math.round(zoom*100)}%</span>
+      </div>
+
+      <div style={S.sliderRow}>
+        <span style={S.sliderLabel}>Luminosité</span>
+        <input type="range" min="50" max="150" value={brightness} onChange={e=>setBrightness(Number(e.target.value))} style={S.slider}/>
+        <span style={{fontSize:12,color:C.textMuted,minWidth:36}}>{brightness}%</span>
+      </div>
+
+      <div style={{display:"flex",gap:8,marginTop:4,marginBottom:8}}>
+        <button type="button" onClick={()=>{setZoom(1);setPos({x:0,y:0});setBrightness(100)}} style={{...btn("transparent",C.textMuted,`1px solid ${C.border}`),padding:"6px 14px",fontSize:12}}>Réinitialiser</button>
+      </div>
+
+      <div style={{fontSize:11,color:C.textMuted,padding:8,background:C.cardAlt,borderRadius:6,marginBottom:16}}>
+        Aperçu — l'image sera exportée en {OUTPUT_W}x{OUTPUT_H}px, qualité JPEG 80%
+      </div>
+
+      <div style={S.btnRow}>
+        <button type="button" onClick={onCancel} style={{...btn("transparent",C.textMuted,`1px solid ${C.border}`),flex:1,justifyContent:"center"}}>Annuler</button>
+        <button type="button" onClick={exportImg} style={{...btn(C.redLight,"#fff"),flex:1,justifyContent:"center"}}>{I.check()} Valider</button>
+      </div>
+    </div>
+  </div>;
+}
+
+function ImgUpload({value,onChange,label:labelText,aspect}){
+  const ref=useRef(null);
+  const[upl,setUpl]=useState(false);
+  const[editorSrc,setEditorSrc]=useState(null);
+
+  const handleFile=e=>{
+    const f=e.target.files?.[0];if(!f)return;
+    setEditorSrc(URL.createObjectURL(f));
+    e.target.value="";
+  };
+
+  const handleEditorSave=(dataUrl)=>{
+    setEditorSrc(null);
+    onChange(dataUrl);
+  };
+
+  return <div>
+    <label style={lbl}>{labelText}</label>
     <div style={{display:"flex",gap:8,marginBottom:8}}>
       <input value={typeof value==="string"&&value?.startsWith("data:")?"(image chargée)":value||""} placeholder="URL ou uploader" onChange={e=>onChange(e.target.value)} style={{...inp,flex:1}} readOnly={value?.startsWith?.("data:")}/>
-      <button type="button" onClick={()=>ref.current?.click()} disabled={upl} style={{...btn(C.blueMid,"#fff"),padding:"8px 14px",fontSize:12,opacity:upl?.5:1}}>{I.upload()} {upl?"...":"Image"}</button>
+      <button type="button" onClick={()=>ref.current?.click()} disabled={upl} style={{...btn(C.blueMid,"#fff"),padding:"8px 14px",fontSize:12,opacity:upl?.5:1}}>{I.upload()} Image</button>
       <input ref={ref} type="file" accept="image/*" onChange={handleFile} style={{display:"none"}}/>
     </div>
-    {value&&<div style={{position:"relative",display:"inline-block"}}><img src={value} alt="" style={{maxHeight:70,borderRadius:6,objectFit:"cover",border:`1px solid ${C.border}`}} onError={e=>e.target.style.display="none"}/><button type="button" onClick={()=>onChange("")} style={{position:"absolute",top:-6,right:-6,width:18,height:18,borderRadius:"50%",background:C.redLight,border:"none",color:"#fff",cursor:"pointer",fontSize:9,display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button></div>}
+    {value&&<div style={{position:"relative",display:"inline-block"}}>
+      <img src={value} alt="" style={{maxHeight:90,borderRadius:8,objectFit:"cover",border:`1px solid ${C.border}`}} onError={e=>e.target.style.display="none"}/>
+      <div style={{display:"flex",gap:4,marginTop:6}}>
+        <button type="button" onClick={()=>{if(value)setEditorSrc(value)}} style={{...btn("transparent",C.blueLight,`1px solid ${C.border}`),padding:"4px 10px",fontSize:11}}>Recadrer</button>
+        <button type="button" onClick={()=>onChange("")} style={{...btn("transparent",C.redLight,`1px solid ${C.border}`),padding:"4px 10px",fontSize:11}}>{I.trash()} Suppr.</button>
+      </div>
+    </div>}
+    {editorSrc&&<ImageEditor src={editorSrc} aspect={aspect} onSave={handleEditorSave} onCancel={()=>setEditorSrc(null)}/>}
   </div>;
 }
 
@@ -265,7 +383,7 @@ function AdminPage({data,setData,onSave,saveState}){
           <div><label style={lbl}>Athlète</label><input value={row.athlete||""} onChange={e=>set("palmares",palmares.map(r=>r.id===row.id?{...r,athlete:e.target.value}:r))} style={inp}/></div>
           <div><label style={lbl}>Ceinture</label><select value={row.belt||"Blanche"} onChange={e=>set("palmares",palmares.map(r=>r.id===row.id?{...r,belt:e.target.value}:r))} style={{...inp,cursor:"pointer"}}>{BELTS.map(b=><option key={b} value={b}>{b}</option>)}</select></div>
         </div>
-        <div style={{marginBottom:10}}><ImgUpload value={row.photo||""} label="Photo de l'athlète" onChange={v=>set("palmares",palmares.map(r=>r.id===row.id?{...r,photo:v}:r))}/></div>
+        <div style={{marginBottom:10}}><ImgUpload value={row.photo||""} label="Photo de l'athlète" aspect="square" onChange={v=>set("palmares",palmares.map(r=>r.id===row.id?{...r,photo:v}:r))}/></div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10}}>
           <div><label style={lbl}>Compétition</label><input value={row.competition||""} onChange={e=>set("palmares",palmares.map(r=>r.id===row.id?{...r,competition:e.target.value}:r))} style={inp}/></div>
           <div><label style={lbl}>Résultat</label><input value={row.result||""} onChange={e=>set("palmares",palmares.map(r=>r.id===row.id?{...r,result:e.target.value}:r))} style={inp}/></div>
@@ -279,7 +397,7 @@ function AdminPage({data,setData,onSave,saveState}){
     {tab==="config"&&<div style={{display:"grid",gap:20}}>
       <div style={{...crd,borderLeft:`3px solid ${C.gold}`}}>
         <h3 style={{...hd,fontSize:20,color:C.gold,marginBottom:16}}>🖼️ Image bannière</h3>
-        <ImgUpload value={config.bannerImage} label="Bannière du hero (page d'accueil)" onChange={v=>set("config",{...config,bannerImage:v})}/>
+        <ImgUpload value={config.bannerImage} label="Bannière du hero (page d'accueil)" aspect="banner" onChange={v=>set("config",{...config,bannerImage:v})}/>
       </div>
       <div style={{...crd,borderLeft:`3px solid ${C.blueLight}`}}>
         <h3 style={{...hd,fontSize:20,color:C.blueLight,marginBottom:16}}>🔗 Lien HelloAsso</h3>
@@ -339,7 +457,7 @@ export default function App(){
   const{texts,locations,blog,palmares,config}=data;
 
   return<div style={{minHeight:"100vh",background:C.bg}}>
-    <style>{`@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
+    <style>{`@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}input[type=range]{-webkit-appearance:none;height:4px;background:${C.border};border-radius:2px;outline:none}input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:${C.redLight};cursor:pointer;border:2px solid ${C.card}}input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:${C.redLight};cursor:pointer;border:2px solid ${C.card}}`}</style>
     <Navbar page={page} setPage={setPage}/>
     {page==="accueil"&&<LandingPage texts={texts} locations={locations} blog={blog} config={config} setPage={setPage}/>}
     {page==="offres"&&<OffresPage texts={texts} config={config} setPage={setPage}/>}
