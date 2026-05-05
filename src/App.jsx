@@ -264,6 +264,121 @@ function PalmaresPage({texts:t,palmares,config:cfg,setPage:go}){
 
 function LegalPage({texts:t,config:cfg,setPage:go}){return<div style={{minHeight:"100vh",paddingTop:80}}><section style={{maxWidth:800,margin:"0 auto",padding:"60px 24px"}}>{tag(C.textMuted,"Juridique")}<h1 style={{...hd,fontSize:"clamp(2rem,5vw,3.2rem)",letterSpacing:2,marginBottom:24}}>{t.legalTitle}</h1><div style={{...crd,padding:32}}><div style={{color:C.textMuted,lineHeight:1.9,fontSize:14,whiteSpace:"pre-line"}}>{t.legalContent}</div></div></section><Footer setPage={go} socials={cfg.socials}/></div>;}
 
+// ═══════ AI MODULE ═══════
+const AI_PRESETS = [
+  {l:"📰 Article de blog",p:"Rédige un article de blog pour le club Aguia JJB sur "},
+  {l:"🏆 Résultat compétition",p:"Rédige un texte annonçant les résultats de notre club à la compétition "},
+  {l:"📢 Annonce événement",p:"Rédige une annonce pour l'événement suivant du club : "},
+  {l:"👋 Texte de bienvenue",p:"Rédige un texte de bienvenue pour les nouveaux membres du club de JJB "},
+  {l:"🥋 Présentation athlète",p:"Rédige une présentation pour l'athlète suivant : "},
+  {l:"📱 Post réseaux sociaux",p:"Rédige un post Instagram/Facebook court et percutant pour : "},
+];
+
+function AIModule(){
+  const[prompt,setPrompt]=useState("");
+  const[result,setResult]=useState("");
+  const[status,setStatus]=useState("idle"); // idle | loading | ok | error
+  const[error,setError]=useState("");
+  const[copied,setCopied]=useState(false);
+  const[context,setContext]=useState("");
+  const resultRef=useRef(null);
+
+  const generate=async()=>{
+    if(!prompt.trim()||prompt.trim().length<3)return setError("Le prompt doit contenir au moins 3 caractères");
+    setStatus("loading");setError("");setResult("");
+    try{
+      const res=await fetch("/api/generate",{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({prompt:prompt.trim(),context:context.trim()}),
+      });
+      const data=await res.json();
+      if(!res.ok){setStatus("error");setError(data.error||"Erreur serveur");return;}
+      setResult(data.text||"");
+      setStatus("ok");
+      setTimeout(()=>resultRef.current?.scrollIntoView({behavior:"smooth",block:"start"}),100);
+    }catch(e){
+      setStatus("error");setError("Erreur réseau : "+e.message);
+    }
+  };
+
+  const copyText=()=>{
+    navigator.clipboard.writeText(result).then(()=>{setCopied(true);setTimeout(()=>setCopied(false),2000);});
+  };
+
+  const S={
+    grid:{display:"grid",gap:20},
+    presetGrid:{display:"flex",flexWrap:"wrap",gap:8,marginBottom:16},
+    presetBtn:(active)=>({...btn(active?`${C.blueLight}30`:"transparent",active?C.blueLight:C.textMuted,`1px solid ${active?C.blueLight:C.border}`),padding:"8px 14px",fontSize:12,borderRadius:20}),
+    textarea:{...inp,minHeight:120,resize:"vertical",fontSize:14,lineHeight:1.6},
+    contextInput:{...inp,fontSize:13},
+    resultBox:{...crd,padding:0,overflow:"hidden",borderColor:status==="ok"?C.green:C.border},
+    resultHeader:{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"14px 18px",background:C.cardAlt,borderBottom:`1px solid ${C.border}`},
+    resultText:{padding:20,fontSize:14,lineHeight:1.8,color:C.text,whiteSpace:"pre-wrap",minHeight:80},
+    statusBar:(type)=>({padding:"10px 16px",borderRadius:8,fontSize:13,display:"flex",alignItems:"center",gap:8,marginBottom:16,background:type==="error"?`${C.red}15`:type==="ok"?`${C.green}15`:`${C.blueMid}15`,border:`1px solid ${type==="error"?C.redLight:type==="ok"?C.green:C.blueLight}`,color:type==="error"?C.redLight:type==="ok"?C.green:C.blueLight}),
+  };
+
+  return<div style={S.grid}>
+    {/* INFO CARD */}
+    <div style={{...crd,borderLeft:`3px solid ${C.blueLight}`,padding:18}}>
+      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
+        <span style={{fontSize:24}}>🤖</span>
+        <div><h3 style={{...hd,fontSize:20,color:C.blueLight}}>Assistant IA</h3><p style={{fontSize:12,color:C.textMuted}}>Génération de textes via Claude (Anthropic)</p></div>
+      </div>
+      <p style={{fontSize:13,color:C.textMuted,lineHeight:1.6}}>Saisissez un prompt ou utilisez un modèle ci-dessous. Le texte généré est modifiable et peut être copié pour l'utiliser dans les autres sections du panneau admin.</p>
+    </div>
+
+    {/* PRESETS */}
+    <div style={crd}>
+      <label style={{...lbl,marginBottom:12}}>Modèles rapides</label>
+      <div style={S.presetGrid}>
+        {AI_PRESETS.map((p,i)=><button key={i} type="button" onClick={()=>setPrompt(p.p)} style={S.presetBtn(prompt.startsWith(p.p))}>{p.l}</button>)}
+      </div>
+
+      <label style={{...lbl,marginBottom:8}}>Votre prompt</label>
+      <textarea value={prompt} onChange={e=>setPrompt(e.target.value)} placeholder="Ex: Rédige un article de blog sur notre stage d'été 2025 avec les détails suivants..." style={S.textarea}/>
+
+      <div style={{marginTop:12}}>
+        <label style={{...lbl,marginBottom:8}}>Contexte supplémentaire (optionnel)</label>
+        <input value={context} onChange={e=>setContext(e.target.value)} placeholder="Ex: Le stage a lieu le 15 juillet, ouvert à tous les niveaux..." style={S.contextInput}/>
+      </div>
+
+      <div style={{display:"flex",gap:10,marginTop:16,alignItems:"center"}}>
+        <button type="button" onClick={generate} disabled={status==="loading"||!prompt.trim()} style={{...btn(status==="loading"?C.border:C.redLight,"#fff"),padding:"12px 28px",opacity:status==="loading"||!prompt.trim()?.6:1}}>
+          {status==="loading"?<><div style={{width:14,height:14,border:"2px solid #888",borderTop:"2px solid #fff",borderRadius:"50%",animation:"spin .8s linear infinite"}}/> Génération...</>:<>{I.check()} Générer le texte</>}
+        </button>
+        {prompt&&<button type="button" onClick={()=>{setPrompt("");setContext("");setResult("");setStatus("idle")}} style={{...btn("transparent",C.textMuted,`1px solid ${C.border}`),padding:"10px 18px",fontSize:13}}>Effacer</button>}
+      </div>
+    </div>
+
+    {/* STATUS */}
+    {status==="error"&&<div style={S.statusBar("error")}>{I.warn()} {error}</div>}
+    {status==="ok"&&!result&&<div style={S.statusBar("ok")}>{I.check()} Génération terminée (réponse vide)</div>}
+
+    {/* RESULT */}
+    {result&&<div ref={resultRef} style={S.resultBox}>
+      <div style={S.resultHeader}>
+        <div style={{display:"flex",alignItems:"center",gap:8}}>
+          <span style={{color:C.green}}>{I.check()}</span>
+          <span style={{fontSize:13,fontWeight:600,color:C.text}}>Texte généré</span>
+          <span style={{fontSize:11,color:C.textMuted}}>({result.length} car.)</span>
+        </div>
+        <div style={{display:"flex",gap:6}}>
+          <button type="button" onClick={copyText} style={{...btn(copied?C.green:"transparent",copied?"#fff":C.textMuted,copied?"":`1px solid ${C.border}`),padding:"6px 12px",fontSize:11}}>
+            {copied?"✓ Copié":"Copier"}
+          </button>
+        </div>
+      </div>
+      <textarea value={result} onChange={e=>setResult(e.target.value)} style={{...S.resultText,width:"100%",border:"none",background:"transparent",fontFamily:"'Barlow',sans-serif",outline:"none",resize:"vertical",minHeight:150}}/>
+    </div>}
+
+    {/* TIPS */}
+    <div style={{fontSize:12,color:C.textMuted,background:C.cardAlt,padding:14,borderRadius:8,border:`1px solid ${C.border}`,lineHeight:1.7}}>
+      💡 <strong>Astuce :</strong> Après génération, modifiez le texte dans la zone ci-dessus puis copiez-le. Collez-le ensuite dans l'onglet Textes, Blog ou Palmarès selon votre besoin.
+    </div>
+  </div>;
+}
+
 // ═══════ ADMIN ═══════
 function AdminPage({data,setData,onSave,saveState}){
   const[auth,setAuth]=useState(false);const[code,setCode]=useState("");const[err,setErr]=useState("");const[tab,setTab]=useState("texts");
@@ -272,7 +387,7 @@ function AdminPage({data,setData,onSave,saveState}){
 
   if(!auth)return<div style={{minHeight:"100vh",paddingTop:80}}><section style={{maxWidth:420,margin:"0 auto",padding:"80px 24px",textAlign:"center"}}><div style={{...crd,padding:40}}><div style={{margin:"0 auto 18px",width:60,height:60,borderRadius:"50%",background:`${C.red}20`,display:"flex",alignItems:"center",justifyContent:"center",color:C.redLight}}>{I.lock()}</div><h2 style={{...hd,fontSize:28,letterSpacing:2,marginBottom:8}}>Panneau Admin</h2><p style={{color:C.textMuted,fontSize:13,marginBottom:24}}>Entrez le code administrateur</p><input type="password" value={code} onChange={e=>setCode(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"){code===ADMIN_CODE?setAuth(true):setErr("Code incorrect")}}} placeholder="Code admin" style={{...inp,textAlign:"center",marginBottom:14,fontSize:16}}/>{err&&<p style={{color:C.redLight,fontSize:13,marginBottom:12}}>{err}</p>}<button type="button" onClick={()=>code===ADMIN_CODE?setAuth(true):setErr("Code incorrect")} style={{...btn(C.redLight,"#fff"),width:"100%",justifyContent:"center",padding:"14px 28px"}}>Connexion</button></div></section></div>;
 
-  const tabs=[{id:"texts",l:"📝 Textes",desc:"Modifier les textes du site"},{id:"locations",l:"📍 Lieux",desc:"Gérer les lieux d'entraînement"},{id:"blog",l:"📰 Blog",desc:"Gérer les articles"},{id:"palmares",l:"🏆 Palmarès",desc:"Résultats compétitions"},{id:"config",l:"⚙️ Config",desc:"Réglages généraux"}];
+  const tabs=[{id:"texts",l:"📝 Textes",desc:"Modifier les textes du site"},{id:"locations",l:"📍 Lieux",desc:"Gérer les lieux d'entraînement"},{id:"blog",l:"📰 Blog",desc:"Gérer les articles"},{id:"palmares",l:"🏆 Palmarès",desc:"Résultats compétitions"},{id:"config",l:"⚙️ Config",desc:"Réglages généraux"},{id:"ai",l:"🤖 IA",desc:"Générer des textes avec l'intelligence artificielle"}];
 
   const tGroups=[{title:"🏠 Page Accueil",keys:["heroTitle","heroSubtitle","aboutTitle","aboutText","ctaTitle","ctaText"]},{title:"📋 Page Offres",keys:["offresTitle","offresIntro","offresEssaiTitle","offresEssaiText","offresAdhesionTitle","offresAdhesionText","offresImportant"]},{title:"📍 Page Lieux",keys:["lieuxTitle","lieuxSubtitle"]},{title:"📰 Page Blog",keys:["blogTitle","blogSubtitle"]},{title:"🏆 Page Palmarès",keys:["palmaresTitle","palmaresIntro"]},{title:"⚖️ Mentions Légales",keys:["legalTitle","legalContent"]}];
   const keyLabels={heroTitle:"Titre principal",heroSubtitle:"Sous-titre",aboutTitle:"Titre section",aboutText:"Description",ctaTitle:"Accroche",ctaText:"Description",offresTitle:"Titre page",offresIntro:"Introduction",offresEssaiTitle:"Titre essai",offresEssaiText:"Description essai",offresAdhesionTitle:"Titre adhésion",offresAdhesionText:"Description adhésion",offresImportant:"Note importante",lieuxTitle:"Titre",lieuxSubtitle:"Sous-titre",blogTitle:"Titre",blogSubtitle:"Sous-titre",palmaresTitle:"Titre",palmaresIntro:"Introduction",legalTitle:"Titre",legalContent:"Contenu complet"};
@@ -415,6 +530,9 @@ function AdminPage({data,setData,onSave,saveState}){
         <button type="button" onClick={()=>set("config",{...config,socials:[...(config.socials||[]),{id:Date.now().toString(),name:"",url:"",type:"other"}]})} style={{...btn("transparent",C.textMuted,`1px solid ${C.border}`),padding:"6px 14px",fontSize:12,marginTop:4}}>{I.plus()} Ajouter un réseau</button>
       </div>
     </div>}
+
+    {/* AI TAB */}
+    {tab==="ai"&&<AIModule/>}
 
   </section></div>;
 }
