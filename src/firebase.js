@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getFirestore, doc, getDoc, setDoc } from "firebase/firestore";
+import { getFirestore, doc, getDoc, setDoc, writeBatch } from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -10,40 +10,60 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
-const DOC_REF = doc(db, "site", "all");
+let db;
+try {
+  const app = initializeApp(firebaseConfig);
+  db = getFirestore(app);
+  console.log("[FB] Init OK, project:", firebaseConfig.projectId);
+} catch (e) {
+  console.error("[FB] Init FAILED:", e.message);
+}
+
+// 5 separate documents to stay under Firestore 1MB limit
+const KEYS = ["texts", "locations", "blog", "palmares", "config"];
+const ref = (key) => doc(db, "aguia", key);
 
 export async function loadAll() {
+  if (!db) { console.error("[FB] No db"); return null; }
   try {
-    const snap = await getDoc(DOC_REF);
-    if (snap.exists()) {
-      console.log("[Firebase] Loaded OK");
-      return snap.data();
-    }
-    console.log("[Firebase] No data yet");
-    return null;
+    const snaps = await Promise.all(KEYS.map(k => getDoc(ref(k))));
+    const result = {};
+    let found = false;
+    KEYS.forEach((k, i) => {
+      if (snaps[i].exists()) {
+        result[k] = snaps[i].data().v;
+        found = true;
+      }
+    });
+    console.log("[FB] Load:", found ? "data found" : "empty (first visit)");
+    return found ? result : null;
   } catch (e) {
-    console.error("[Firebase] Load error:", e.message);
+    console.error("[FB] Load error:", e.code, e.message);
     return null;
   }
 }
 
 export async function saveAll(data) {
+  if (!db) { console.error("[FB] No db"); return { ok: false, error: "Firebase non initialisé" }; }
   try {
-    console.log("[Firebase] Saving...");
-    await setDoc(DOC_REF, {
-      texts: data.texts,
-      locations: data.locations,
-      blog: data.blog,
-      palmares: data.palmares,
-      config: data.config,
-      updatedAt: new Date().toISOString(),
+    console.log("[FB] Saving 5 docs...");
+    const batch = writeBatch(db);
+    const ts = new Date().toISOString();
+    KEYS.forEach(k => {
+      if (data[k] !== undefined) {
+        batch.set(ref(k), { v: data[k], t: ts });
+      }
     });
-    console.log("[Firebase] Saved OK!");
-    return true;
+    await batch.commit();
+    console.log("[FB] Saved OK!");
+    return { ok: true };
   } catch (e) {
-    console.error("[Firebase] Save FAILED:", e.message);
-    return false;
+    console.error("[FB] Save FAILED:", e.code, e.message);
+    let msg = "Erreur inconnue";
+    if (e.code === "permission-denied") msg = "Permission refusée — vérifiez les règles Firestore";
+    else if (e.code === "resource-exhausted") msg = "Document trop volumineux — réduisez les images";
+    else if (e.code === "unavailable") msg = "Firebase indisponible — vérifiez votre connexion";
+    else if (e.message) msg = e.message;
+    return { ok: false, error: msg };
   }
 }
