@@ -323,9 +323,9 @@ function AIModule(){
     <div style={{...crd,borderLeft:`3px solid ${C.blueLight}`,padding:18}}>
       <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
         <span style={{fontSize:24}}>🤖</span>
-        <div><h3 style={{...hd,fontSize:20,color:C.blueLight}}>Assistant IA</h3><p style={{fontSize:12,color:C.textMuted}}>Génération de textes via IA (Groq) — gratuit</p></div>
+        <div><h3 style={{...hd,fontSize:20,color:C.blueLight}}>Assistant IA</h3><p style={{fontSize:12,color:C.textMuted}}>Génération de textes via IA</p></div>
       </div>
-      <p style={{fontSize:13,color:C.textMuted,lineHeight:1.6}}>Saisissez un prompt ou utilisez un modèle ci-dessous. Le texte généré est modifiable et peut être copié pour l'utiliser dans les autres sections du panneau admin.</p>
+      <p style={{fontSize:13,color:C.textMuted,lineHeight:1.6}}>Saisissez un prompt. Le texte généré est modifiable et peut être copié pour l'utiliser dans les autres sections du panneau admin.</p>
     </div>
 
     {/* PRESETS */}
